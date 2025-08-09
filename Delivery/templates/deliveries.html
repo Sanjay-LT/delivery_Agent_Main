@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">My Assigned Deliveries</h2>
+    </div>
+    <div class="card-body">
+        {% if deliveries %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Customer Name</th>
+                        <th>Address</th>
+                        <th>Assigned Date</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for delivery in deliveries %}
+                    <tr>
+                        <td>{{ delivery.OrderID }}</td>
+                        <td>{{ delivery.CustomerName }}</td>
+                        <td>{{ delivery.Address }}</td>
+                        <td>{{ delivery.AssignedDate }}</td>
+                        <td>
+                            {% if delivery.Status == 'Delivered' %}
+                            <span class="badge badge-success">Delivered</span>
+                            {% elif delivery.Status == 'In Transit' %}
+                            <span class="badge badge-primary">In Transit</span>
+                            {% else %}
+                            <span class="badge badge-warning">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('update_status', order_id=delivery.OrderID) }}" class="btn btn-sm btn-primary">Update</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p>No deliveries assigned yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

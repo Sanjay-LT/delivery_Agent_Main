@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-8">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Update Delivery Status</h2>
+            </div>
+            <div class="card-body">
+                {% if order %}
+                <div class="mb-4">
+                    <h4>Order Details</h4>
+                    <p><strong>Order ID:</strong> {{ order.OrderID }}</p>
+                    <p><strong>Customer:</strong> {{ order.CustomerName }}</p>
+                    <p><strong>Address:</strong> {{ order.Address }}</p>
+                    <p><strong>Current Status:</strong> 
+                        {% if order.Status == 'Delivered' %}
+                        <span class="badge badge-success">Delivered</span>
+                        {% elif order.Status == 'In Transit' %}
+                        <span class="badge badge-primary">In Transit</span>
+                        {% else %}
+                        <span class="badge badge-warning">Pending</span>
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label class="form-label" for="status">Update Status</label>
+                        <select class="form-control" id="status" name="status" required>
+                            <option value="In Transit" {% if order.Status == 'In Transit' %}selected{% endif %}>In Transit</option>
+                            <option value="Delivered" {% if order.Status == 'Delivered' %}selected{% endif %}>Delivered</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="proof">Proof of Delivery (Photo/OTP)</label>
+                        <input type="file" class="form-control" id="proof" name="proof" accept="image/*">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="remarks">Remarks (Optional)</label>
+                        <textarea class="form-control" id="remarks" name="remarks" rows="3"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Update Status</button>
+                    <a href="{{ url_for('deliveries') }}" class="btn btn-secondary">Cancel</a>
+                </form>
+                {% else %}
+                <div class="alert alert-danger">Order not found.</div>
+                <a href="{{ url_for('deliveries') }}" class="btn btn-primary">Back to Deliveries</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('status').addEventListener('change', function() {
+        const proofField = document.getElementById('proof');
+        if (this.value === 'Delivered') {
+            proofField.required = true;
+        } else {
+            proofField.required = false;
+        }
+    });
+</script>
+{% endblock %}

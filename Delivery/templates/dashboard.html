@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-3">
+        <div class="stats-card total">
+            <h3>{{ total_deliveries }}</h3>
+            <p>Total Deliveries</p>
+        </div>
+    </div>
+    <div class="col-3">
+        <div class="stats-card completed">
+            <h3>{{ completed_deliveries }}</h3>
+            <p>Completed</p>
+        </div>
+    </div>
+    <div class="col-3">
+        <div class="stats-card pending">
+            <h3>{{ pending_deliveries }}</h3>
+            <p>Pending</p>
+        </div>
+    </div>
+    <div class="col-3">
+        <div class="stats-card earnings">
+            <h3>₹{{ total_earnings }}</h3>
+            <p>Total Earnings</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-8">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">My Assigned Deliveries</h2>
+                <a href="{{ url_for('deliveries') }}" class="btn btn-primary">View All</a>
+            </div>
+            <div class="card-body">
+                {% if deliveries %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Customer</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for delivery in deliveries[:5] %}
+                            <tr>
+                                <td>{{ delivery.OrderID }}</td>
+                                <td>{{ delivery.CustomerName }}</td>
+                                <td>
+                                    {% if delivery.Status == 'Delivered' %}
+                                    <span class="badge badge-success">Delivered</span>
+                                    {% elif delivery.Status == 'In Transit' %}
+                                    <span class="badge badge-primary">In Transit</span>
+                                    {% else %}
+                                    <span class="badge badge-warning">Pending</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('update_status', order_id=delivery.OrderID) }}" class="btn btn-sm btn-primary">Update</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p>No deliveries assigned yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Recent History</h2>
+            </div>
+            <div class="card-body">
+                {% if history %}
+                <ul style="list-style-type: none; padding-left: 0;">
+                    {% for item in history %}
+                    <li style="padding: 0.75rem 0; border-bottom: 1px solid #eee;">
+                        <strong>{{ item.OrderID }}</strong><br>
+                        <small>{{ item.DeliveredDate }}</small><br>
+                        {% if item.CustomerFeedback %}
+                        <span class="badge badge-info">{{ item.CustomerFeedback }}</span>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p>No delivery history yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Recent Feedback</h2>
+            </div>
+            <div class="card-body">
+                {% if feedback %}
+                <div class="row">
+                    {% for item in feedback[:4] %}
+                    <div class="col-3">
+                        <div style="background-color: #f8f9fa; padding: 1rem; border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <strong>{{ item.CustomerName }}</strong>
+                                <div>
+                                    {% for i in range(5) %}
+                                    <span style="color: {% if i < item.Rating %}gold{% else %}lightgray{% endif %};">★</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <p style="font-size: 0.9rem; margin-bottom: 0;">{{ item.Comment }}</p>
+                            <small class="text-muted">{{ item.Date }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p>No feedback received yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Simple chart using Chart.js (optional)
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof Chart !== 'undefined') {
+            const ctx = document.createElement('canvas');
+            ctx.id = 'deliveryChart';
+            document.querySelector('.card-body').prepend(ctx);
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Completed', 'Pending'],
+                    datasets: [{
+                        label: 'Deliveries',
+                        data: [{{ completed_deliveries }}, {{ pending_deliveries }}],
+                        backgroundColor: [
+                            'rgba(40, 167, 69, 0.7)',
+                            'rgba(255, 193, 7, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(40, 167, 69, 1)',
+                            'rgba(255, 193, 7, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

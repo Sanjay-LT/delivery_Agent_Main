@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-6">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Welcome to Nomii Delivery Partner</h2>
+            </div>
+            <div class="card-body">
+                <p>Efficient delivery management system for retail supply chain partners.</p>
+                <p>Login to access your delivery dashboard and manage your deliveries.</p>
+                <div class="mt-4">
+                    <a href="{{ url_for('login') }}" class="btn btn-primary">Login</a>
+                    <a href="{{ url_for('register') }}" class="btn btn-success">Register</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Features</h2>
+            </div>
+            <div class="card-body">
+                <ul style="list-style-type: none; padding-left: 0;">
+                    <li style="padding: 0.5rem 0; border-bottom: 1px solid #eee;">✔️ Delivery Assignment Tracking</li>
+                    <li style="padding: 0.5rem 0; border-bottom: 1px solid #eee;">✔️ Real-time Status Updates</li>
+                    <li style="padding: 0.5rem 0; border-bottom: 1px solid #eee;">✔️ Earnings Reports</li>
+                    <li style="padding: 0.5rem 0; border-bottom: 1px solid #eee;">✔️ Customer Feedback</li>
+                    <li style="padding: 0.5rem 0;">✔️ Emergency Support</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-8">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">My Earnings</h2>
+            </div>
+            <div class="card-body">
+                {% if earnings %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Deliveries</th>
+                                <th>Earnings</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for earning in earnings %}
+                            <tr>
+                                <td>{{ earning.Month }}</td>
+                                <td>{{ earning.TotalDeliveries }}</td>
+                                <td>₹{{ earning.Earnings }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p>No earnings data available yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Summary</h2>
+            </div>
+            <div class="card-body">
+                <div style="text-align: center; padding: 1.5rem;">
+                    <h3 style="font-size: 2rem; color: var(--success);">₹{{ total_earnings }}</h3>
+                    <p>Total Earnings</p>
+                </div>
+                
+                {% if earnings %}
+                <div class="chart-container">
+                    <canvas id="earningsChart"></canvas>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof Chart !== 'undefined' && {{ earnings|length }} > 0) {
+            const ctx = document.getElementById('earningsChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: {{ earnings|map(attribute='Month')|list|tojson }},
+                    datasets: [{
+                        data: {{ earnings|map(attribute='Earnings')|list|tojson }},
+                        backgroundColor: [
+                            '#4a6bff',
+                            '#28a745',
+                            '#ffc107',
+                            '#dc3545',
+                            '#17a2b8'
+                        ]
+                    }]
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
