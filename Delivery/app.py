@@ -15,51 +15,88 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Ensure upload folder exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs('data/delivery_data', exist_ok=True)
+os.makedirs('data', exist_ok=True)
 
 # Helper functions
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def save_to_excel(data, filename, sheet_name='Sheet1'):
-    filepath = f'data/delivery_data/{filename}'
+    filepath = f'data/{filename}'
     try:
         if os.path.exists(filepath):
-            df = pd.read_excel(filepath)
+            df = pd.read_excel(filepath, sheet_name=sheet_name)
             df = pd.concat([df, pd.DataFrame([data])], ignore_index=True)
         else:
             df = pd.DataFrame([data])
-        df.to_excel(filepath, index=False)
+        with pd.ExcelWriter(filepath, engine='openpyxl', mode='a' if os.path.exists(filepath) else 'w') as writer:
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
     except Exception as e:
         print(f"Error saving to {filename}: {e}")
 
 def get_user_deliveries(delivery_id):
     try:
-        df = pd.read_excel('data/delivery_data/Delivery_assigned.xlsx')
-        return df[df['DeliveryID'] == delivery_id].to_dict('records')
-    except:
-        return []
-
-def get_user_history(delivery_id):
-    try:
-        df = pd.read_excel('data/delivery_data/DeliveryHistory.xlsx')
-        return df[df['DeliveryID'] == delivery_id].to_dict('records')
-    except:
+        df = pd.read_excel('data/nomii_delivery_fake_data.xlsx', sheet_name='Deliveries')
+        return df[df['Delivery ID'] == delivery_id].to_dict('records')
+    except Exception as e:
+        print(f"Error reading deliveries: {e}")
         return []
 
 def get_user_earnings(delivery_id):
     try:
-        df = pd.read_excel('data/delivery_data/DeliveryEarnings.xlsx')
-        return df[df['DeliveryID'] == delivery_id].to_dict('records')
-    except:
+        df = pd.read_excel('data/nomii_delivery_fake_data.xlsx', sheet_name='Earnings')
+        return df[df['Delivery ID'] == delivery_id].to_dict('records')
+    except Exception as e:
+        print(f"Error reading earnings: {e}")
         return []
 
 def get_user_feedback(delivery_id):
     try:
-        df = pd.read_excel('data/delivery_data/delivery_feedback.xlsx')
-        return df[df['DeliveryID'] == delivery_id].to_dict('records')
-    except:
+        df = pd.read_excel('data/nomii_delivery_fake_data.xlsx', sheet_name='Feedback')
+        df = df[(df['Delivery ID'] == delivery_id) & (df['Feedback'] != '')]
+        return df.to_dict('records')
+    except Exception as e:
+        print(f"Error reading feedback: {e}")
         return []
+
+def update_delivery_status(delivery_id, order_id, status, proof=None, remarks=None):
+    try:
+        df = pd.read_excel('data/nomii_delivery_fake_data.xlsx', sheet_name='Deliveries')
+        df.loc[(df['Delivery ID'] == delivery_id) & (df.index == int(order_id[1:])), 'Status'] = status
+        if status == 'Completed':
+            df.loc[(df['Delivery ID'] == delivery_id) & (df.index == int(order_id[1:])), 'Date Completed'] = datetime.now().strftime("%Y-%m-%d")
+        
+        if status == 'Completed':
+            earnings_df = pd.read_excel('data/nomii_delivery_fake_data.xlsx', sheet_name='Earnings')
+            new_earning = {
+                'Delivery ID': delivery_id,
+                'Date': datetime.now().strftime("%Y-%m-%d"),
+                'Amount (₹)': df.loc[(df['Delivery ID'] == delivery_id) & (df.index == int(order_id[1:])), 'Earnings (₹)'].values[0]
+            }
+            earnings_df = pd.concat([earnings_df, pd.DataFrame([new_earning])], ignore_index=True)
+        
+        if status == 'Completed':
+            feedback_df = pd.read_excel('data/nomii_delivery_fake_data.xlsx', sheet_name='Feedback')
+            new_feedback = {
+                'Delivery ID': delivery_id,
+                'Customer Name': df.loc[(df['Delivery ID'] == delivery_id) & (df.index == int(order_id[1:])), 'Customer Name'].values[0],
+                'Feedback': remarks if remarks else 'No feedback provided'
+            }
+            feedback_df = pd.concat([feedback_df, pd.DataFrame([new_feedback])], ignore_index=True)
+        
+        with pd.ExcelWriter('data/nomii_delivery_fake_data.xlsx') as writer:
+            df.to_excel(writer, sheet_name='Deliveries', index=False)
+            if status == 'Completed':
+                earnings_df.to_excel(writer, sheet_name='Earnings', index=False)
+                feedback_df.to_excel(writer, sheet_name='Feedback', index=False)
+            else:
+                pd.DataFrame().to_excel(writer, sheet_name='Earnings')
+                pd.DataFrame().to_excel(writer, sheet_name='Feedback')
+        
+        return True
+    except Exception as e:
+        print(f"Error updating delivery status: {e}")
+        return False
 
 # Routes
 @app.route('/')
@@ -69,7 +106,6 @@ def home():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        # Get form data
         name = request.form['name']
         phone = request.form['phone']
         aadhaar = request.form['aadhaar']
@@ -79,7 +115,6 @@ def register():
         vehicle_type = request.form['vehicle_type']
         vehicle_number = request.form['vehicle_number']
         
-        # Handle file uploads
         id_proof = None
         photo = None
         
@@ -97,10 +132,8 @@ def register():
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                 photo = filename
         
-        # Generate Delivery ID
-        delivery_id = f"D{str(uuid.uuid4().int)[:8]}"
+        delivery_id = f"D{str(uuid.uuid4().int)[:4]}"
         
-        # Save to Excel
         user_data = {
             "DeliveryID": delivery_id,
             "Name": name,
@@ -115,7 +148,7 @@ def register():
             "Photo": photo
         }
         
-        save_to_excel(user_data, 'delivery_users.xlsx')
+        save_to_excel(user_data, 'delivery_users.xlsx', sheet_name='Users')
         
         flash('Registration successful! Please login.', 'success')
         return redirect(url_for('login'))
@@ -129,7 +162,7 @@ def login():
         password = request.form['password']
         
         try:
-            df = pd.read_excel('data/delivery_data/delivery_users.xlsx')
+            df = pd.read_excel('data/delivery_users.xlsx', sheet_name='Users')
             user = df[(df['Email'] == email) & (df['Password'] == password)]
             
             if not user.empty:
@@ -149,27 +182,17 @@ def login():
 
 @app.route('/dashboard')
 def dashboard():
-    if 'delivery_id' not in session:
-        return redirect(url_for('login'))
+    delivery_id = session.get('delivery_id', 'D0000')
     
-    delivery_id = session['delivery_id']
-    
-    # Get assigned deliveries
     deliveries = get_user_deliveries(delivery_id)
     
-    # Calculate stats
     total_deliveries = len(deliveries)
-    completed_deliveries = len([d for d in deliveries if d.get('Status') == 'Delivered'])
+    completed_deliveries = len([d for d in deliveries if d.get('Status') == 'Completed'])
     pending_deliveries = total_deliveries - completed_deliveries
     
-    # Get recent history (last 5)
-    history = get_user_history(delivery_id)[-5:]
-    
-    # Get earnings
     earnings = get_user_earnings(delivery_id)
-    total_earnings = sum(e.get('Earnings', 0) for e in earnings)
+    total_earnings = sum(float(e.get('Amount (₹)', 0)) for e in earnings)
     
-    # Get feedback
     feedback = get_user_feedback(delivery_id)
     
     return render_template('dashboard.html', 
@@ -177,27 +200,19 @@ def dashboard():
                          total_deliveries=total_deliveries,
                          completed_deliveries=completed_deliveries,
                          pending_deliveries=pending_deliveries,
-                         history=history,
                          earnings=earnings,
                          total_earnings=total_earnings,
                          feedback=feedback)
 
 @app.route('/deliveries')
 def deliveries():
-    if 'delivery_id' not in session:
-        return redirect(url_for('login'))
-    
-    delivery_id = session['delivery_id']
+    delivery_id = session.get('delivery_id', 'D0000')
     deliveries = get_user_deliveries(delivery_id)
-    
     return render_template('deliveries.html', deliveries=deliveries)
 
 @app.route('/update_status/<order_id>', methods=['GET', 'POST'])
 def update_status(order_id):
-    if 'delivery_id' not in session:
-        return redirect(url_for('login'))
-    
-    delivery_id = session['delivery_id']
+    delivery_id = session.get('delivery_id', 'D0000')
     
     if request.method == 'POST':
         status = request.form['status']
@@ -211,74 +226,38 @@ def update_status(order_id):
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                 proof = filename
         
-        # Update Delivery_assigned.xlsx
-        try:
-            df = pd.read_excel('data/delivery_data/Delivery_assigned.xlsx')
-            df.loc[df['OrderID'] == order_id, 'Status'] = status
-            df.to_excel('data/delivery_data/Delivery_assigned.xlsx', index=False)
-        except Exception as e:
-            print(f"Error updating status: {e}")
+        if update_delivery_status(delivery_id, order_id, status, proof, remarks):
+            flash('Delivery status updated successfully!', 'success')
+        else:
+            flash('Failed to update delivery status', 'danger')
         
-        # Add to DeliveryHistory if delivered
-        if status == 'Delivered':
-            history_data = {
-                "OrderID": order_id,
-                "DeliveryID": delivery_id,
-                "DeliveredDate": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "Proof": proof,
-                "Remarks": remarks
-            }
-            save_to_excel(history_data, 'DeliveryHistory.xlsx')
-        
-        # Add to Update_delivery_status.xlsx
-        update_data = {
-            "OrderID": order_id,
-            "DeliveryID": delivery_id,
-            "StatusUpdate": status,
-            "UpdateTime": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "Remarks": remarks
-        }
-        save_to_excel(update_data, 'Update_delivery_status.xlsx')
-        
-        flash('Delivery status updated successfully!', 'success')
         return redirect(url_for('deliveries'))
     
-    # Get order details
     try:
-        df = pd.read_excel('data/delivery_data/Delivery_assigned.xlsx')
-        order = df[df['OrderID'] == order_id].iloc[0].to_dict()
-    except:
+        df = pd.read_excel('data/nomii_delivery_fake_data.xlsx', sheet_name='Deliveries')
+        order = df[df.index == int(order_id[1:])].iloc[0].to_dict()
+        order['OrderID'] = order_id
+    except Exception as e:
+        print(f"Error getting order details: {e}")
         order = None
     
     return render_template('update_status.html', order=order)
 
 @app.route('/earnings')
 def earnings():
-    if 'delivery_id' not in session:
-        return redirect(url_for('login'))
-    
-    delivery_id = session['delivery_id']
+    delivery_id = session.get('delivery_id', 'D0000')
     earnings = get_user_earnings(delivery_id)
-    total_earnings = sum(e.get('Earnings', 0) for e in earnings)
-    
+    total_earnings = sum(float(e.get('Amount (₹)', 0)) for e in earnings)
     return render_template('earnings.html', earnings=earnings, total_earnings=total_earnings)
 
 @app.route('/feedback')
 def feedback():
-    if 'delivery_id' not in session:
-        return redirect(url_for('login'))
-    
-    delivery_id = session['delivery_id']
+    delivery_id = session.get('delivery_id', 'D0000')
     feedback = get_user_feedback(delivery_id)
-    
     return render_template('feedback.html', feedback=feedback)
 
 @app.route('/emergency', methods=['POST'])
 def emergency():
-    if 'delivery_id' not in session:
-        return redirect(url_for('login'))
-    
-    # In a real app, this would trigger notifications to admin
     flash('Emergency alert sent to support team! Help is on the way.', 'warning')
     return redirect(url_for('dashboard'))
 
